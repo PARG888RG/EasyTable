@@ -498,6 +498,13 @@ function exportToDocx() {
         <head>
             <meta charset="utf-8">
             <title>Documento</title>
+            <style>
+                /* Estilos básicos para Word */
+                body { font-family: sans-serif; }
+                table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+                td { padding: 8px; vertical-align: top; word-wrap: break-word; } /* Ensure text wraps */
+                img { max-width: 100%; height: auto; display: block; } /* Crucial for image sizing in Word */
+            </style>
         </head>
         <body>
             <h1 style="text-align: center; font-size: ${document.querySelector('h1[contenteditable="true"]').style.fontSize || '32px'}; font-family: ${document.querySelector('h1[contenteditable="true"]').style.fontFamily || 'sans-serif'}; color: ${document.querySelector('h1[contenteditable="true"]').style.color || '#1f2937'}; background-color: ${document.querySelector('h1[contenteditable="true"]').style.backgroundColor || 'transparent'};">${document.querySelector('h1[contenteditable="true"]').textContent}</h1>
@@ -514,7 +521,8 @@ function exportToDocx() {
 
         docxContent += `<p style="margin-top: 20px; margin-bottom: 10px; font-style: italic; font-size: ${enunciadoFontSize}; font-family: ${enunciadoFontFamily}; color: ${enunciadoColor}; background-color: ${enunciadoBgColor};">${enunciadoText}</p>`;
         
-        docxContent += `<table border="1" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;"><tbody>`;
+        // Added table-layout: fixed to the table style
+        docxContent += `<table border="1" style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;"><tbody>`;
 
         const rows = section.querySelectorAll('table tbody tr');
         rows.forEach((row, rowIndex) => {
@@ -540,7 +548,8 @@ function exportToDocx() {
                     const images = cell.querySelectorAll('.image-wrapper img');
                     if (images.length > 0) {
                         images.forEach(img => {
-                            docxContent += `<img src="${img.src}" style="max-width: ${img.style.width || '100%'}; height: auto; display: block; margin-bottom: 5px;" />`;
+                            // Changed image style to use 100% width and auto height with max-width for better DOCX compatibility
+                            docxContent += `<img src="${img.src}" style="width: 100%; height: auto; max-width: 100%; display: block; margin-bottom: 5px;" />`;
                         });
                     } else {
                         docxContent += `<p>${cellText}</p>`; // If no images, show placeholder text
