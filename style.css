@@ -1,0 +1,287 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6; /* Color de fondo original del cuerpo */
+    color: #1f2937;
+    line-height: 1.6;
+}
+.container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 0.75rem;
+}
+.table-container {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background-color: #f9fafb; /* Color de fondo original del contenedor de tabla */
+    /* Propiedad para evitar que las tablas se dividan en páginas */
+    page-break-inside: avoid;
+    position: relative; /* Needed for absolute positioning of control buttons */
+}
+.table-cell {
+    /* width will be set dynamically by JS */
+    min-height: 150px; /* Altura mínima para las celdas */
+    border: 1px dashed #9ca3af;
+    display: flex;
+    flex-direction: column; /* Para apilar el texto y la imagen */
+    align-items: center;
+    justify-content: flex-start; /* Alinea el contenido al inicio verticalmente */
+    font-size: 0.875rem;
+    color: #6b7280;
+    background-color: #ffffff;
+    border-radius: 0.375rem;
+    position: relative; /* Para posicionar el botón de eliminar */
+    transition: background-color 0.2s;
+    padding: 0.5rem; /* Reduced padding to allow more space for content */
+}
+/* Estilos específicos para celdas que aceptan imágenes */
+.image-droppable-cell {
+    cursor: pointer;
+}
+.image-droppable-cell:hover {
+    background-color: #f0f4f8;
+}
+
+.table-cell .placeholder-text {
+    text-align: center;
+    padding: 0.5rem;
+    width: 100%; /* Ensure placeholder takes full width */
+}
+.enunciado-space {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    background-color: #eff6ff;
+    color: #3b82f6;
+    font-style: italic;
+}
+/* Estilo para los elementos contenteditable */
+[contenteditable="true"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); /* Anillo de enfoque azul */
+    border-color: #3b82f6;
+}
+
+.action-button {
+    display: block;
+    width: fit-content;
+    margin: 2rem auto;
+    padding: 0.75rem 2rem;
+    background-color: #2563eb;
+    color: white;
+    font-weight: bold;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.action-button:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
+}
+.action-button:active {
+    transform: translateY(0);
+}
+.action-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Styles for image wrapper and controls */
+.image-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0.5rem; /* Space between images */
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.image-wrapper img {
+    display: block;
+    max-width: 100%;
+    height: auto; /* Maintain aspect ratio */
+    object-fit: contain; /* Ensure image fits without cropping */
+    border-radius: 0.375rem;
+}
+.remove-image-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s, opacity 0.2s linear;
+    z-index: 10; /* Ensure it's above the image */
+}
+.image-wrapper:hover .remove-image-btn {
+    visibility: visible;
+    opacity: 1;
+}
+.scale-control {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.6); /* Darker background for contrast */
+    padding: 0.25rem 0.5rem;
+    display: none; /* Hidden by default */
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+    z-index: 9; /* Below remove button */
+}
+.image-wrapper:hover .scale-control {
+    display: block; /* Show on hover */
+}
+.image-scaler {
+    width: 100%;
+    -webkit-appearance: none; /* Remove default slider style */
+    appearance: none;
+    height: 4px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    border-radius: 2px;
+}
+.image-scaler::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
+}
+.image-scaler::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+/* Clase para ocultar elementos durante la exportación a PDF */
+.hide-for-pdf {
+    display: none !important;
+}
+
+/* Context Menu Styles */
+.context-menu {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    padding: 0.5rem 0;
+    min-width: 180px; /* Increased width for submenus */
+    display: none; /* Hidden by default */
+}
+.context-menu-item {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #1f2937;
+    position: relative; /* For submenus */
+}
+.context-menu-item:hover {
+    background-color: #f3f4f6;
+}
+
+/* Submenu Styles */
+.submenu-trigger {
+    position: relative;
+}
+.submenu {
+    position: absolute;
+    left: 100%; /* Position to the right of parent */
+    top: 0;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 0;
+    min-width: 150px;
+    display: none; /* Hidden by default */
+}
+.submenu-trigger:hover > .submenu {
+    display: block;
+}
+
+.color-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+
+/* Discreet Table Control Buttons */
+.table-control-btn {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px; /* Slightly larger for visibility */
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem; /* Larger icon */
+    font-weight: bold;
+    cursor: pointer;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s, opacity 0.2s linear;
+    z-index: 50; /* Below context menu, above image controls */
+}
+
+.table-container:hover .table-control-btn {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Row buttons on the bottom-left, horizontal orientation */
+.add-row-btn-icon {
+    bottom: 5px;
+    left: 5px;
+    background-color: #22c55e; /* Green */
+}
+.remove-row-btn-icon {
+    bottom: 5px;
+    left: 40px; /* Position next to add button */
+    background-color: #ef4444; /* Red */
+}
+/* Column buttons on the top-right, vertical orientation */
+.add-col-btn-icon {
+    top: 5px;
+    right: 5px;
+    background-color: #8b5cf6; /* Purple */
+}
+.remove-col-btn-icon {
+    top: 40px; /* Position below add button */
+    right: 5px;
+    background-color: #f97316; /* Orange */
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyTable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" id="document-content">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800" contenteditable="true" data-default-text="EasyTable Documento con Tablas para Imágenes">EasyTable: Documento con Tablas para Imágenes</h1>
+        <p class="text-center text-gray-600 mb-8" contenteditable="true" data-default-text="Haz clic en cualquier celda para subir una imagen. En las celdas de &quot;Ejecución&quot; puedes subir varias imágenes y escalarlas. Haz clic en el botón &quot;Exportar a PDF&quot; al final para guardar el documento.">Haz clic en cualquier celda para subir una imagen. En las celdas de "Ejecución" puedes subir varias imágenes y escalarlas. Haz clic en el botón "Exportar a PDF" al final para guardar el documento.</p>
+
+        <div id="tables-container"></div>
+
+        <div class="flex justify-center gap-4 mt-8 flex-wrap hide-for-pdf-buttons">
+            <button id="addTableBtn" class="action-button bg-green-600 hover:bg-green-700">Agregar Tabla</button>
+            <button id="removeTableBtn" class="action-button bg-red-600 hover:bg-red-700">Quitar Última Tabla</button>
+            <button id="exportPdfBtn" class="action-button">Exportar a PDF</button>
+            <button id="exportDocxBtn" class="action-button">Guardar en DOCX</button>
+        </div>
+    </div>
+
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" id="applyToAllTablesBtn">Aplicar a todas las tablas</div>
+        <div class="context-menu-item submenu-trigger">Tamaño de Fuente
+            <div class="submenu">
+                <div class="context-menu-item" data-action="fontSize" data-value="1rem">Pequeño</div>
+                <div class="context-menu-item" data-action="fontSize" data-value="1.125rem">Mediano</div>
+                <div class="context-menu-item" data-action="fontSize" data-value="1.25rem">Grande</div>
+            </div>
+        </div>
+        <div class="context-menu-item submenu-trigger">Tipo de Fuente
+            <div class="submenu">
+                <div class="context-menu-item" data-action="fontFamily" data-value="sans-serif">Sans-serif</div>
+                <div class="context-menu-item" data-action="fontFamily" data-value="serif">Serif</div>
+                <div class="context-menu-item" data-action="fontFamily" data-value="monospace">Monospace</div>
+            </div>
+        </div>
+        <div class="context-menu-item submenu-trigger">Color de Texto
+            <div class="submenu">
+                <div class="context-menu-item color-box" data-action="textColor" data-value="black" style="background-color: black;"></div>
+                <div class="context-menu-item color-box" data-action="textColor" data-value="red" style="background-color: red;"></div>
+                <div class="context-menu-item color-box" data-action="textColor" data-value="blue" style="background-color: blue;"></div>
+                <div class="context-menu-item color-box" data-action="textColor" data-value="green" style="background-color: green;"></div>
+            </div>
+        </div>
+        <div class="context-menu-item submenu-trigger">Color de Fondo
+            <div class="submenu">
+                <div class="context-menu-item color-box" data-action="bgColor" data-value="white" style="background-color: white; border: 1px solid #eee;"></div>
+                <div class="context-menu-item color-box" data-action="bgColor" data-value="yellow" style="background-color: yellow;"></div>
+                <div class="context-menu-item color-box" data-action="bgColor" data-value="lightblue" style="background-color: lightblue;"></div>
+                <div class="context-menu-item color-box" data-action="bgColor" data-value="lightgreen" style="background-color: lightgreen;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
