@@ -3,40 +3,50 @@ body {
     background-color: #f3f4f6; /* Color de fondo original del cuerpo */
     color: #1f2937;
     line-height: 1.6;
+    margin: 0; /* Ensure no default body margin */
+    padding: 0;
 }
 .container {
+    width: 95%; /* Fluid width */
     max-width: 800px;
-    margin: 2rem auto;
-    padding: 2rem;
+    margin: 1rem auto; /* Adjusted margin for smaller screens */
+    padding: 1rem; /* Adjusted padding for smaller screens */
     background-color: #ffffff;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 0.75rem;
 }
 .table-container {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
+    margin-bottom: 1.5rem; /* Adjusted margin */
+    padding: 1rem; /* Adjusted padding */
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     background-color: #f9fafb; /* Color de fondo original del contenedor de tabla */
-    /* Propiedad para evitar que las tablas se dividan en páginas */
     page-break-inside: avoid;
     position: relative; /* Needed for absolute positioning of control buttons */
+    overflow-x: auto; /* Allow horizontal scrolling for tables if content is too wide */
 }
+
+table {
+    min-width: 320px; /* Ensure a minimum width for the table itself */
+    border-collapse: collapse;
+    width: 100%;
+}
+
 .table-cell {
     /* width will be set dynamically by JS */
-    min-height: 150px; /* Altura mínima para las celdas */
+    min-height: 120px; /* Slightly reduced min-height for mobile */
     border: 1px dashed #9ca3af;
     display: flex;
     flex-direction: column; /* Para apilar el texto y la imagen */
     align-items: center;
     justify-content: flex-start; /* Alinea el contenido al inicio verticalmente */
-    font-size: 0.875rem;
+    font-size: 0.8rem; /* Smaller font size for mobile */
     color: #6b7280;
     background-color: #ffffff;
     border-radius: 0.375rem;
     position: relative; /* Para posicionar el botón de eliminar */
     transition: background-color 0.2s;
-    padding: 0.5rem; /* Reduced padding to allow more space for content */
+    padding: 0.25rem; /* Reduced padding to allow more space for content */
 }
 /* Estilos específicos para celdas que aceptan imágenes */
 .image-droppable-cell {
@@ -68,10 +78,9 @@ body {
 }
 
 .action-button {
-    display: block;
-    width: fit-content;
-    margin: 2rem auto;
-    padding: 0.75rem 2rem;
+    width: 100%; /* Full width for buttons on small screens */
+    margin: 0.5rem auto; /* Adjusted margin for vertical stacking */
+    padding: 0.6rem 1.5rem; /* Adjusted padding */
     background-color: #2563eb;
     color: white;
     font-weight: bold;
@@ -80,6 +89,7 @@ body {
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem; /* Smaller font size */
 }
 .action-button:hover {
     background-color: #1d4ed8;
@@ -153,26 +163,26 @@ body {
     width: 100%;
     -webkit-appearance: none; /* Remove default slider style */
     appearance: none;
-    height: 4px;
+    height: 6px; /* Slightly thicker */
     background: #d3d3d3;
     outline: none;
     opacity: 0.7;
     -webkit-transition: .2s;
     transition: opacity .2s;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 .image-scaler::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 15px;
-    height: 15px;
+    width: 20px; /* Larger thumb */
+    height: 20px; /* Larger thumb */
     border-radius: 50%;
     background: #4CAF50;
     cursor: pointer;
 }
 .image-scaler::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
+    width: 20px; /* Larger thumb */
+    height: 20px; /* Larger thumb */
     border-radius: 50%;
     background: #4CAF50;
     cursor: pointer;
@@ -284,4 +294,83 @@ body {
     top: 40px; /* Position below add button */
     right: 5px;
     background-color: #f97316; /* Orange */
+}
+
+/* Media Queries for smaller screens */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.75rem; /* Smaller heading on mobile */
+    }
+    p {
+        font-size: 0.9rem; /* Smaller paragraph text on mobile */
+    }
+
+    .table-container {
+        padding: 0.5rem; /* Reduced padding on mobile */
+    }
+
+    .table-cell {
+        min-height: 100px; /* Adjusted min-height */
+        font-size: 0.75rem; /* Smaller cell text */
+    }
+
+    /* Adjust positioning of discreet table control buttons for mobile */
+    .table-control-btn {
+        position: absolute; /* Keep absolute for now but review positioning */
+        width: 35px; /* Larger tap area */
+        height: 35px; /* Larger tap area */
+        font-size: 1.5rem;
+        visibility: visible; /* Always visible on mobile for easier interaction */
+        opacity: 1;
+        /* Re-evaluate exact positioning for optimal mobile UX */
+    }
+
+    /* Adjust specific control button positions for mobile */
+    .add-row-btn-icon {
+        bottom: 10px;
+        left: 10px;
+    }
+    .remove-row-btn-icon {
+        bottom: 10px;
+        left: 55px; /* Adjusted to prevent overlap */
+    }
+    .add-col-btn-icon {
+        top: 10px;
+        right: 10px;
+    }
+    .remove-col-btn-icon {
+        top: 55px; /* Adjusted to prevent overlap */
+        right: 10px;
+    }
+
+    .context-menu {
+        left: 50% !important; /* Center horizontally */
+        transform: translateX(-50%);
+        width: 95%; /* Take up most of the width */
+        top: 10% !important; /* Position further down from the top */
+        max-height: 85vh; /* Limit height */
+        overflow-y: auto; /* Allow scrolling if content is too long */
+        padding: 0.5rem;
+    }
+    .submenu {
+        position: static; /* Stack submenus vertically */
+        width: 100%;
+        box-shadow: none; /* Remove shadow for stacked submenus */
+        border: none; /* Remove border for stacked submenus */
+        padding-left: 1rem; /* Indent submenu items */
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even smaller adjustments for very small phones */
+    h1 {
+        font-size: 1.5rem;
+    }
+    .action-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+    .table-cell {
+        min-height: 80px;
+    }
 }
