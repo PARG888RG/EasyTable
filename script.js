@@ -484,7 +484,7 @@ removeTableBtn.addEventListener('click', () => {
 
 
 // Function to export to DOCX
-function exportToDocx() {
+async function exportToDocx() {
     // Disable button and show loading message
     exportDocxBtn.disabled = true;
     const originalDocxButtonText = exportDocxBtn.textContent;
@@ -511,7 +511,20 @@ function exportToDocx() {
             <p style="text-align: center; font-size: ${document.querySelector('p[contenteditable="true"]').style.fontSize || '16px'}; font-family: ${document.querySelector('p[contenteditable="true"]').style.fontFamily || 'sans-serif'}; color: ${document.querySelector('p[contenteditable="true"]').style.color || '#6b7280'}; background-color: ${document.querySelector('p[contenteditable="true"]').style.backgroundColor || 'transparent'};">${document.querySelector('p[contenteditable="true"]').textContent}</p>
     `;
 
-    document.querySelectorAll('.table-container').forEach(section => {
+    // Function to get image dimensions
+    const getImageDimensions = (src) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            img.onerror = () => resolve({ width: 0, height: 0 }); // Fallback
+            img.src = src;
+        });
+    };
+
+    // Constants for conversion (assuming 96 DPI for web pixels to cm)
+    const PIXELS_PER_CM = 96 / 2.54; // 96 pixels per inch, 2.54 cm per inch
+
+    for (const section of document.querySelectorAll('.table-container')) {
         const enunciadoElement = section.querySelector('.enunciado-space');
         const enunciadoText = enunciadoElement.textContent;
         const enunciadoFontSize = enunciadoElement.style.fontSize || '0.875rem';
@@ -521,10 +534,81 @@ function exportToDocx() {
 
         docxContent += `<p style="margin-top: 20px; margin-bottom: 10px; font-style: italic; font-size: ${enunciadoFontSize}; font-family: ${enunciadoFontFamily}; color: ${enunciadoColor}; background-color: ${enunciadoBgColor};">${enunciadoText}</p>`;
         
-        // Added table-layout: fixed to the table style
         docxContent += `<table border="1" style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;"><tbody>`;
 
         const rows = section.querySelectorAll('table tbody tr');
+        const numCols = rows.length > 0 ? rows[0].cells.length : 0;
+        
+        // Data structure to hold image information for calculations
+        const imagesData = []; // [{ row, col, imgElement, originalWidth, originalHeight, scale, effectiveWidthCm, effectiveHeightCm }]
+
+        // First pass: Collect all image data
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+            if (rowIndex === 0) continue; // Skip header row for image processing
+            const row = rows[rowIndex];
+            const cells = row.querySelectorAll('td');
+            for (let colIndex = 0; colIndex < cells.length; colIndex++) {
+                const cell = cells[colIndex];
+                const images = cell.querySelectorAll('.image-wrapper img');
+                for (const imgElement of images) {
+                    const scaleMatch = imgElement.style.width.match(/(\d+)%/);
+                    const scale = scaleMatch ? parseFloat(scaleMatch[1]) / 100 : 1; // Get user's scale, default to 1 (100%)
+
+                    const dimensions = await getImageDimensions(imgElement.src);
+                    
+                    imagesData.push({
+                        row: rowIndex,
+                        col: colIndex,
+                        imgElement: imgElement,
+                        originalWidth: dimensions.width,
+                        originalHeight: dimensions.height,
+                        scale: scale,
+                        effectiveWidthCm: (dimensions.width * scale) / PIXELS_PER_CM,
+                        effectiveHeightCm: (dimensions.height * scale) / PIXELS_PER_CM
+                    });
+                }
+            }
+        }
+
+        // Apply width constraints per row (excluding header row)
+        for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+            let totalRowWidthCm = 0;
+            const imagesInRow = imagesData.filter(img => img.row === rowIndex);
+
+            imagesInRow.forEach(img => {
+                totalRowWidthCm += img.effectiveWidthCm;
+            });
+
+            const MAX_ROW_WIDTH_CM = 15;
+            if (totalRowWidthCm > MAX_ROW_WIDTH_CM && imagesInRow.length > 0) {
+                const scalingFactor = MAX_ROW_WIDTH_CM / totalRowWidthCm;
+                imagesInRow.forEach(img => {
+                    img.effectiveWidthCm *= scalingFactor;
+                    img.effectiveHeightCm *= scalingFactor; // Maintain aspect ratio
+                });
+            }
+        }
+
+        // Apply height constraints per column (excluding header row)
+        for (let colIndex = 0; colIndex < numCols; colIndex++) {
+            let totalColHeightCm = 0;
+            const imagesInCol = imagesData.filter(img => img.col === colIndex && img.row !== 0);
+
+            imagesInCol.forEach(img => {
+                totalColHeightCm += img.effectiveHeightCm;
+            });
+
+            const MAX_COL_HEIGHT_CM = 25;
+            if (totalColHeightCm > MAX_COL_HEIGHT_CM && imagesInCol.length > 0) {
+                const scalingFactor = MAX_COL_HEIGHT_CM / totalColHeightCm;
+                imagesInCol.forEach(img => {
+                    img.effectiveWidthCm *= scalingFactor;
+                    img.effectiveHeightCm *= scalingFactor; // Maintain aspect ratio
+                });
+            }
+        }
+
+        // Second pass: Generate DOCX content with adjusted image sizes
         rows.forEach((row, rowIndex) => {
             docxContent += `<tr>`;
             const cells = row.querySelectorAll('td');
@@ -545,11 +629,16 @@ function exportToDocx() {
                     docxContent += `<p><strong>${cellText}</strong></p>`;
                 } else {
                     // For image cells
-                    const images = cell.querySelectorAll('.image-wrapper img');
+                    const images = imagesData.filter(img => img.row === rowIndex && img.col === cellIndex);
                     if (images.length > 0) {
-                        images.forEach(img => {
-                            // Changed image style to use 100% width and auto height with max-width for better DOCX compatibility
-                            docxContent += `<img src="${img.src}" style="width: 100%; height: auto; max-width: 100%; display: block; margin-bottom: 5px;" />`;
+                        images.forEach(imgData => {
+                            // Convert back from cm to pixels (or use cm directly in style if Word supports it well, but pixels are more consistent with web origins)
+                            // Word often prefers explicit pixel dimensions or percentage relative to containing element.
+                            // Here, we convert cm back to pixels and apply as width/height in px.
+                            const finalWidthPx = imgData.effectiveWidthCm * PIXELS_PER_CM;
+                            const finalHeightPx = imgData.effectiveHeightCm * PIXELS_PER_CM;
+
+                            docxContent += `<img src="${imgData.imgElement.src}" style="width: ${finalWidthPx}px; height: ${finalHeightPx}px; max-width: ${finalWidthPx}px; display: block; margin-bottom: 5px;" />`;
                         });
                     } else {
                         docxContent += `<p>${cellText}</p>`; // If no images, show placeholder text
@@ -560,7 +649,7 @@ function exportToDocx() {
             docxContent += `</tr>`;
         });
         docxContent += `</tbody></table>`;
-    });
+    }
 
     docxContent += `</body></html>`;
 
