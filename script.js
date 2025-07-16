@@ -499,11 +499,10 @@ async function exportToDocx() {
             <meta charset="utf-8">
             <title>Documento</title>
             <style>
-                /* Estilos básicos para Word */
                 body { font-family: sans-serif; }
                 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-                td { padding: 8px; vertical-align: top; word-wrap: break-word; } /* Ensure text wraps */
-                img { max-width: 100%; height: auto; display: block; } /* Crucial for image sizing in Word */
+                td { padding: 8px; vertical-align: top; word-wrap: break-word; }
+                img { max-width: 100%; height: auto; display: block; }
             </style>
         </head>
         <body>
@@ -511,7 +510,6 @@ async function exportToDocx() {
             <p style="text-align: center; font-size: ${document.querySelector('p[contenteditable="true"]').style.fontSize || '16px'}; font-family: ${document.querySelector('p[contenteditable="true"]').style.fontFamily || 'sans-serif'}; color: ${document.querySelector('p[contenteditable="true"]').style.color || '#6b7280'}; background-color: ${document.querySelector('p[contenteditable="true"]').style.backgroundColor || 'transparent'};">${document.querySelector('p[contenteditable="true"]').textContent}</p>
     `;
 
-    // Function to get image dimensions
     const getImageDimensions = (src) => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -520,9 +518,12 @@ async function exportToDocx() {
             img.src = src;
         });
     };
-
-    // Constants for conversion (assuming 96 DPI for web pixels to cm)
-    const PIXELS_PER_CM = 96 / 2.54; // 96 pixels per inch, 2.54 cm per inch
+    
+    // --- CAMBIO: Constantes para el control de tamaño ---
+    const PIXELS_PER_CM = 37.8; // Standard conversion for 96 DPI
+    const MAX_ROW_WIDTH_CM = 15;
+    const TARGET_ROW_WIDTH_CM = 12; // Target width if row is too wide
+    const MAX_COL_HEIGHT_CM = 20;
 
     for (const section of document.querySelectorAll('.table-container')) {
         const enunciadoElement = section.querySelector('.enunciado-space');
@@ -533,115 +534,95 @@ async function exportToDocx() {
         const enunciadoBgColor = enunciadoElement.style.backgroundColor || '#eff6ff';
 
         docxContent += `<p style="margin-top: 20px; margin-bottom: 10px; font-style: italic; font-size: ${enunciadoFontSize}; font-family: ${enunciadoFontFamily}; color: ${enunciadoColor}; background-color: ${enunciadoBgColor};">${enunciadoText}</p>`;
-        
         docxContent += `<table border="1" style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;"><tbody>`;
 
         const rows = section.querySelectorAll('table tbody tr');
         const numCols = rows.length > 0 ? rows[0].cells.length : 0;
         
-        // Data structure to hold image information for calculations
-        const imagesData = []; // [{ row, col, imgElement, originalWidth, originalHeight, scale, effectiveWidthCm, effectiveHeightCm }]
+        const imagesData = [];
 
-        // First pass: Collect all image data
-        for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-            if (rowIndex === 0) continue; // Skip header row for image processing
-            const row = rows[rowIndex];
-            const cells = row.querySelectorAll('td');
+        // --- CAMBIO: Fase 1 - Recopilar datos de imágenes ---
+        for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) { // Start at 1 to skip header
+            const cells = rows[rowIndex].querySelectorAll('td');
             for (let colIndex = 0; colIndex < cells.length; colIndex++) {
-                const cell = cells[colIndex];
-                const images = cell.querySelectorAll('.image-wrapper img');
+                const images = cells[colIndex].querySelectorAll('.image-wrapper img');
                 for (const imgElement of images) {
                     const scaleMatch = imgElement.style.width.match(/(\d+)%/);
-                    const scale = scaleMatch ? parseFloat(scaleMatch[1]) / 100 : 1; // Get user's scale, default to 1 (100%)
-
+                    const scale = scaleMatch ? parseFloat(scaleMatch[1]) / 100 : 1;
                     const dimensions = await getImageDimensions(imgElement.src);
                     
-                    imagesData.push({
-                        row: rowIndex,
-                        col: colIndex,
-                        imgElement: imgElement,
-                        originalWidth: dimensions.width,
-                        originalHeight: dimensions.height,
-                        scale: scale,
-                        effectiveWidthCm: (dimensions.width * scale) / PIXELS_PER_CM,
-                        effectiveHeightCm: (dimensions.height * scale) / PIXELS_PER_CM
-                    });
+                    if (dimensions.width > 0) {
+                        imagesData.push({
+                            row: rowIndex,
+                            col: colIndex,
+                            imgElement: imgElement,
+                            aspectRatio: dimensions.width / dimensions.height,
+                            finalWidthCm: ((dimensions.width * scale) / PIXELS_PER_CM),
+                            finalHeightCm: ((dimensions.height * scale) / PIXELS_PER_CM)
+                        });
+                    }
                 }
             }
         }
 
-        // Apply width constraints per row (excluding header row)
+        // --- CAMBIO: Fase 2 - Aplicar restricciones de ancho por fila ---
         for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
-            let totalRowWidthCm = 0;
             const imagesInRow = imagesData.filter(img => img.row === rowIndex);
+            if (imagesInRow.length === 0) continue;
 
-            imagesInRow.forEach(img => {
-                totalRowWidthCm += img.effectiveWidthCm;
-            });
+            const totalRowWidthCm = imagesInRow.reduce((sum, img) => sum + img.finalWidthCm, 0);
 
-            const MAX_ROW_WIDTH_CM = 15;
-            if (totalRowWidthCm > MAX_ROW_WIDTH_CM && imagesInRow.length > 0) {
-                const scalingFactor = MAX_ROW_WIDTH_CM / totalRowWidthCm;
+            if (totalRowWidthCm > MAX_ROW_WIDTH_CM) {
+                const scalingFactor = TARGET_ROW_WIDTH_CM / totalRowWidthCm;
                 imagesInRow.forEach(img => {
-                    img.effectiveWidthCm *= scalingFactor;
-                    img.effectiveHeightCm *= scalingFactor; // Maintain aspect ratio
+                    img.finalWidthCm *= scalingFactor;
+                    img.finalHeightCm *= scalingFactor;
                 });
             }
         }
 
-        // Apply height constraints per column (excluding header row)
+        // --- CAMBIO: Fase 3 - Aplicar restricciones de alto por columna ---
         for (let colIndex = 0; colIndex < numCols; colIndex++) {
-            let totalColHeightCm = 0;
-            const imagesInCol = imagesData.filter(img => img.col === colIndex && img.row !== 0);
+            const imagesInCol = imagesData.filter(img => img.col === colIndex);
+            if (imagesInCol.length === 0) continue;
 
-            imagesInCol.forEach(img => {
-                totalColHeightCm += img.effectiveHeightCm;
-            });
+            const totalColHeightCm = imagesInCol.reduce((sum, img) => sum + img.finalHeightCm, 0);
 
-            const MAX_COL_HEIGHT_CM = 25;
-            if (totalColHeightCm > MAX_COL_HEIGHT_CM && imagesInCol.length > 0) {
+            if (totalColHeightCm > MAX_COL_HEIGHT_CM) {
                 const scalingFactor = MAX_COL_HEIGHT_CM / totalColHeightCm;
                 imagesInCol.forEach(img => {
-                    img.effectiveWidthCm *= scalingFactor;
-                    img.effectiveHeightCm *= scalingFactor; // Maintain aspect ratio
+                    img.finalHeightCm *= scalingFactor;
+                    img.finalWidthCm = img.finalHeightCm * img.aspectRatio; // Recalculate width
                 });
             }
         }
 
-        // Second pass: Generate DOCX content with adjusted image sizes
+        // --- CAMBIO: Fase 4 - Generar contenido DOCX con tamaños ajustados ---
         rows.forEach((row, rowIndex) => {
             docxContent += `<tr>`;
             const cells = row.querySelectorAll('td');
             cells.forEach((cell, cellIndex) => {
                 const contentElement = cell.querySelector('p[contenteditable="true"]') || cell.querySelector('.placeholder-text');
                 let cellText = contentElement ? contentElement.textContent : '';
-
                 const cellFontSize = contentElement ? (contentElement.style.fontSize || '0.875rem') : '0.875rem';
                 const cellFontFamily = contentElement ? (contentElement.style.fontFamily || 'sans-serif') : 'sans-serif';
                 const cellColor = contentElement ? (contentElement.style.color || '#6b7280') : '#6b7280';
                 const cellBgColor = contentElement ? (contentElement.style.backgroundColor || 'white') : 'white';
-
-
+                
                 docxContent += `<td style="width: ${cell.style.width || '50%'}; padding: 8px; vertical-align: top; font-size: ${cellFontSize}; font-family: ${cellFontFamily}; color: ${cellColor}; background-color: ${cellBgColor};">`;
                 
-                // Add header text for the first row
                 if (rowIndex === 0) {
                     docxContent += `<p><strong>${cellText}</strong></p>`;
                 } else {
-                    // For image cells
                     const images = imagesData.filter(img => img.row === rowIndex && img.col === cellIndex);
                     if (images.length > 0) {
                         images.forEach(imgData => {
-                            // Convert back from cm to pixels (or use cm directly in style if Word supports it well, but pixels are more consistent with web origins)
-                            // Word often prefers explicit pixel dimensions or percentage relative to containing element.
-                            // Here, we convert cm back to pixels and apply as width/height in px.
-                            const finalWidthPx = imgData.effectiveWidthCm * PIXELS_PER_CM;
-                            const finalHeightPx = imgData.effectiveHeightCm * PIXELS_PER_CM;
-
-                            docxContent += `<img src="${imgData.imgElement.src}" style="width: ${finalWidthPx}px; height: ${finalHeightPx}px; max-width: ${finalWidthPx}px; display: block; margin-bottom: 5px;" />`;
+                            const finalWidthPx = imgData.finalWidthCm * PIXELS_PER_CM;
+                            const finalHeightPx = imgData.finalHeightCm * PIXELS_PER_CM;
+                            docxContent += `<img src="${imgData.imgElement.src}" style="width:${finalWidthPx}px; height:${finalHeightPx}px; display: block; margin-bottom: 5px;" />`;
                         });
                     } else {
-                        docxContent += `<p>${cellText}</p>`; // If no images, show placeholder text
+                        docxContent += `<p>${cellText}</p>`;
                     }
                 }
                 docxContent += `</td>`;
@@ -653,10 +634,8 @@ async function exportToDocx() {
 
     docxContent += `</body></html>`;
 
-    // Create a Blob with UTF-8 encoding and the BOM
     const blob = new Blob([BOM + docxContent], { type: 'application/msword;charset=utf-8' });
-
-    if (navigator.msSaveOrOpenBlob) { // IE10+
+    if (navigator.msSaveOrOpenBlob) {
         navigator.msSaveOrOpenBlob(blob, 'documento_con_tablas.doc');
     } else {
         const a = document.createElement('a');
@@ -674,148 +653,75 @@ async function exportToDocx() {
 
 // Handle PDF export
 document.getElementById('exportPdfBtn').addEventListener('click', () => {
-    // Disable button and show loading message
     exportPdfBtn.disabled = true;
     const originalPdfButtonText = exportPdfBtn.textContent;
     exportPdfBtn.textContent = 'Generando PDF...';
 
-    // Hide export buttons during PDF generation
     document.querySelectorAll('.hide-for-pdf-buttons button').forEach(btn => {
         btn.classList.add('hide-for-pdf');
     });
 
-    // Save original background colors and styles
+    const originalStyles = [];
+    document.querySelectorAll('h1, p, .enunciado-space').forEach(el => {
+        originalStyles.push({ el, color: el.style.color, backgroundColor: el.style.backgroundColor });
+        el.style.backgroundColor = '#ffffff';
+        el.style.color = '#1f2937';
+    });
+
     const originalBodyBg = document.body.style.backgroundColor;
-    const originalTableContainerBgs = [];
-    const originalEnunciadoStyles = []; // Store all relevant styles for enunciado
+    document.body.style.backgroundColor = '#ffffff';
 
-    document.querySelectorAll('.table-container').forEach(el => {
-        originalTableContainerBgs.push(el.style.backgroundColor);
-        el.style.backgroundColor = '#ffffff'; // Set to white for export
-    });
-
-    document.querySelectorAll('.enunciado-space').forEach(el => {
-        originalEnunciadoStyles.push({
-            backgroundColor: el.style.backgroundColor,
-            color: el.style.color,
-            border: el.style.border,
-            fontSize: el.style.fontSize,
-            fontFamily: el.style.fontFamily
-        });
-        el.style.backgroundColor = '#ffffff'; // Set to white for export
-        el.style.color = '#1f2937'; // Change text color to dark if background is white
-        el.style.border = 'none'; // Remove border if not desired in PDF
-    });
-
-    // Also handle top H1 and P
-    const h1Element = document.querySelector('h1[contenteditable="true"]');
-    const pElement = document.querySelector('p[contenteditable="true"]');
-
-    const originalH1Styles = {
-        color: h1Element.style.color,
-        fontSize: h1Element.style.fontSize,
-        fontFamily: h1Element.style.fontFamily,
-        backgroundColor: h1Element.style.backgroundColor
-    };
-    const originalPStyles = {
-        color: pElement.style.color,
-        fontSize: pElement.style.fontSize,
-        fontFamily: pElement.style.fontFamily,
-        backgroundColor: pElement.style.backgroundColor
-    };
-
-    h1Element.style.color = '#1f2937';
-    pElement.style.color = '#1f2937';
-
-
-    document.body.style.backgroundColor = '#ffffff'; // Set body to white for export
-
-    // Scroll to the top to ensure all content is in the viewport for html2canvas
     window.scrollTo(0, 0);
 
-    // Give a small delay to ensure all images and content are rendered
     setTimeout(() => {
-        // Options for html2pdf
+        // --- CAMBIO: Lógica para insertar saltos de página ---
+        const A4_PAGE_HEIGHT_PX = 1050; // Approx. height in pixels for A4 portrait minus margins
+        const headerHeight = document.querySelector('h1').offsetHeight + document.querySelector('p[contenteditable="true"]').offsetHeight;
+        let currentPageHeight = headerHeight;
+
+        // Remove old page breaks before recalculating
+        document.querySelectorAll('.html2pdf__page-break').forEach(pb => pb.remove());
+
+        const tableContainers = document.querySelectorAll('#tables-container .table-container');
+        tableContainers.forEach((container, index) => {
+            const containerHeight = container.offsetHeight;
+            if (index > 0 && currentPageHeight + containerHeight > A4_PAGE_HEIGHT_PX) {
+                // Insert a page-break element before this container
+                container.insertAdjacentHTML('beforebegin', '<div class="html2pdf__page-break" style="page-break-before: always;"></div>');
+                currentPageHeight = containerHeight; // Reset height for the new page
+            } else {
+                currentPageHeight += containerHeight;
+            }
+        });
+
         const options = {
             margin: 10,
             filename: 'documento_con_tablas_e_imagenes.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: {
-                scale: 2, // Increase scale for better image quality in PDF
-                logging: true,
-                useCORS: true,
-                allowTaint: true,
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, logging: true, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            // Tell html2pdf to respect our manually added page breaks
+            pagebreak: { mode: ['css', 'legacy'], before: '.html2pdf__page-break' }
         };
 
-        // Generate and save the PDF
-        html2pdf().set(options).from(documentContent).save().then(() => {
-            // Enable button and restore original text after generation
+        html2pdf().set(options).from(documentContent).save().finally(() => {
+            // This block runs whether the promise is resolved or rejected
             exportPdfBtn.disabled = false;
             exportPdfBtn.textContent = originalPdfButtonText;
-            // Show export buttons again
             document.querySelectorAll('.hide-for-pdf-buttons button').forEach(btn => {
                 btn.classList.remove('hide-for-pdf');
             });
-
-            // Restore original background colors and styles
+            
             document.body.style.backgroundColor = originalBodyBg;
-            document.querySelectorAll('.table-container').forEach((el, index) => {
-                el.style.backgroundColor = originalTableContainerBgs[index];
-            });
-            document.querySelectorAll('.enunciado-space').forEach((el, index) => {
-                el.style.backgroundColor = originalEnunciadoStyles[index].backgroundColor;
-                el.style.color = originalEnunciadoStyles[index].color;
-                el.style.border = originalEnunciadoStyles[index].border;
-                el.style.fontSize = originalEnunciadoStyles[index].fontSize;
-                el.style.fontFamily = originalEnunciadoStyles[index].fontFamily;
-            });
-            // Restore top H1 and P styles
-            h1Element.style.color = originalH1Styles.color;
-            h1Element.style.fontSize = originalH1Styles.fontSize;
-            h1Element.style.fontFamily = originalH1Styles.fontFamily;
-            h1Element.style.backgroundColor = originalH1Styles.backgroundColor;
-
-            pElement.style.color = originalPStyles.color;
-            pElement.style.fontSize = originalPStyles.fontSize;
-            pElement.style.fontFamily = originalPStyles.fontFamily;
-            pElement.style.backgroundColor = originalPStyles.backgroundColor;
-
-        }).catch(error => {
-            console.error("Error al generar el PDF:", error);
-            exportPdfBtn.disabled = false;
-            exportPdfBtn.textContent = originalPdfButtonText;
-            // Show export buttons again
-            document.querySelectorAll('.hide-for-pdf-buttons button').forEach(btn => {
-                btn.classList.remove('hide-for-pdf');
+            originalStyles.forEach(item => {
+                item.el.style.color = item.color;
+                item.el.style.backgroundColor = item.backgroundColor;
             });
 
-            // Restore original background colors and styles in case of error
-            document.body.style.backgroundColor = originalBodyBg;
-            document.querySelectorAll('.table-container').forEach((el, index) => {
-                el.style.backgroundColor = originalTableContainerBgs[index];
-            });
-            document.querySelectorAll('.enunciado-space').forEach((el, index) => {
-                el.style.backgroundColor = originalEnunciadoStyles[index].backgroundColor;
-                el.style.color = originalEnunciadoStyles[index].color;
-                el.style.border = originalEnunciadoStyles[index].border;
-                el.style.fontSize = originalEnunciadoStyles[index].fontSize;
-                el.style.fontFamily = originalEnunciadoStyles[index].fontFamily;
-            });
-            // Restore top H1 and P styles
-            h1Element.style.color = originalH1Styles.color;
-            h1Element.style.fontSize = originalH1Styles.fontSize;
-            h1Element.style.fontFamily = originalH1Styles.fontFamily;
-            h1Element.style.backgroundColor = originalH1Styles.backgroundColor;
-
-            pElement.style.color = originalPStyles.color;
-            pElement.style.fontSize = originalPStyles.fontSize;
-            pElement.style.fontFamily = originalPStyles.fontFamily;
-            pElement.style.backgroundColor = originalPStyles.backgroundColor;
-            alert("Hubo un error al generar el PDF. Por favor, inténtalo de nuevo.");
+            // Clean up the added page-break elements
+            document.querySelectorAll('.html2pdf__page-break').forEach(pb => pb.remove());
         });
-    }, 500); // 500ms delay
+    }, 500);
 });
 
 document.getElementById('exportDocxBtn').addEventListener('click', exportToDocx);
